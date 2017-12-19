@@ -83,7 +83,7 @@ private:
   edm::EDGetTokenT<int>          partonTop_channel_;
   edm::EDGetTokenT<vector<int> > partonTop_modes_;
   edm::EDGetTokenT<reco::GenParticleCollection> partonTop_genParticles_;
-  edm::EDGetTokenT<edm::View<reco::Candidate> > pseudoTop_leptons_, pseudoTop_neutrinos_, pseudoTop_jets_;
+  edm::EDGetTokenT<edm::View<reco::Candidate> > particleLevel_leptons_, particleLevel_neutrinos_, particleLevel_jets_;
 
   bool runOnMC;
   
@@ -137,7 +137,7 @@ private:
   const static int NCutflow = 12;
   std::vector<std::vector<int> > cutflow_;
 
-  // ####### Dstar  begin  #########
+/*  // ####### Dstar  begin  #########
 
   std::vector<bool> b_d0_true, b_d0_fit;
   //std::vector<float> b_d0_pt, b_d0_eta, b_d0_phi, b_d0_m;
@@ -186,7 +186,7 @@ private:
   edm::EDGetTokenT<edm::View<reco::GenParticle> >            mcSrc_;
 
   double matchingDeltaR_;
-  // ############### Dstar end #################
+  */// ############### Dstar end #################
 };
 
 
@@ -195,12 +195,12 @@ TtbarDiLeptonAnalyzer::TtbarDiLeptonAnalyzer(const edm::ParameterSet& iConfig)
   // ############## Dstar begin #####################
   //parameterInit(iConfig);
 
-  d0Token_  = consumes<cat::SecVertexCollection>(iConfig.getParameter<edm::InputTag>("d0s"));
+/*  d0Token_  = consumes<cat::SecVertexCollection>(iConfig.getParameter<edm::InputTag>("d0s"));
   dstarToken_  = consumes<cat::SecVertexCollection>(iConfig.getParameter<edm::InputTag>("dstars"));
   JpsiToken_  = consumes<cat::SecVertexCollection>(iConfig.getParameter<edm::InputTag>("Jpsis"));
   mcSrc_ = consumes<edm::View<reco::GenParticle> >(iConfig.getParameter<edm::InputTag>("mcLabel"));
   matchingDeltaR_  = iConfig.getParameter<double>("matchingDeltaR");
-
+*/
   // ############## Dstar end #####################
   recoFiltersToken_ = consumes<int>(iConfig.getParameter<edm::InputTag>("recoFilters"));
   nGoodVertexToken_ = consumes<int>(iConfig.getParameter<edm::InputTag>("nGoodVertex"));
@@ -244,9 +244,9 @@ TtbarDiLeptonAnalyzer::TtbarDiLeptonAnalyzer(const edm::ParameterSet& iConfig)
   partonTop_channel_ = consumes<int>(iConfig.getParameter<edm::InputTag>("partonTop_channel"));
   partonTop_modes_   = consumes<vector<int> >(iConfig.getParameter<edm::InputTag>("partonTop_modes"));
   partonTop_genParticles_   = consumes<reco::GenParticleCollection>(iConfig.getParameter<edm::InputTag>("partonTop_genParticles"));
-  pseudoTop_leptons_   = consumes<edm::View<reco::Candidate> >(edm::InputTag("pseudoTop", "leptons"));
-  pseudoTop_neutrinos_   = consumes<edm::View<reco::Candidate> >(edm::InputTag("pseudoTop", "neutrinos"));
-  pseudoTop_jets_ = consumes<edm::View<reco::Candidate> >(edm::InputTag("pseudoTop", "jets"));
+  particleLevel_leptons_   = consumes<edm::View<reco::Candidate> >(edm::InputTag("particleLevel", "leptons"));
+  particleLevel_neutrinos_   = consumes<edm::View<reco::Candidate> >(edm::InputTag("particleLevel", "neutrinos"));
+  particleLevel_jets_ = consumes<edm::View<reco::Candidate> >(edm::InputTag("particleLevel", "jets"));
 
   auto solverPSet = iConfig.getParameter<edm::ParameterSet>("solver");
   auto algoName = solverPSet.getParameter<std::string>("algo");
@@ -298,7 +298,7 @@ TtbarDiLeptonAnalyzer::~TtbarDiLeptonAnalyzer()
 
 // #####################  Dstar begin  ########################
 
-int TtbarDiLeptonAnalyzer::isFromtop( const reco::GenParticle& p){
+/*int TtbarDiLeptonAnalyzer::isFromtop( const reco::GenParticle& p){
 
   //  string pt = Form("%f", p.pt());
   //  string pdgid = Form("%i",p.pdgId());
@@ -332,7 +332,7 @@ shared_ptr<TLorentzVector> TtbarDiLeptonAnalyzer::mcMatching( vector<TLorentzVec
   return nullptr;
 }
 
-
+*/
 
 // ###################### Dstar end #########################
 
@@ -394,10 +394,12 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
     b_weight = b_genweight*b_puweight;
     
     //h_nevents->Fill(0.5,b_weight);
-    h_nevents->Fill(0.5,b_genweight*b_puweight);
+    //h_nevents->Fill(0.5,b_genweight*b_puweight);
   }
+  h_nevents->Fill(0.5,b_genweight*b_puweight);
+  //cout<<"2: "<<b_genweight*b_puweight<<endl;
   // #####################  Dstar begin  ########################
-  edm::Handle<cat::SecVertexCollection> d0s;       iEvent.getByToken(d0Token_,d0s);
+/*  edm::Handle<cat::SecVertexCollection> d0s;       iEvent.getByToken(d0Token_,d0s);
   edm::Handle<cat::SecVertexCollection> dstars;    iEvent.getByToken(dstarToken_,dstars);
   edm::Handle<cat::SecVertexCollection> Jpsis;     iEvent.getByToken(JpsiToken_,Jpsis);
 
@@ -423,7 +425,7 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
 
         nIDMother = isFromtop(aGenParticle);
 
-        if ( /*0 == 1 &&*/ abs(nIDMother) != 6 ) {
+        if ( 0 == 1 && abs(nIDMother) != 6 ) {
 	  continue;
         }
 
@@ -437,7 +439,7 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
 
         nIDMother = isFromtop(aGenParticle);
 
-        if ( /*0 == 1 &&*/ abs(nIDMother) != 6 ) {
+        if ( 0 == 1 && abs(nIDMother) != 6 ) {
 	  continue;
         }
 
@@ -452,7 +454,7 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
 
         nIDMother = isFromtop(aGenParticle);
 
-        if ( /*0 == 1 &&*/ abs(nIDMother) != 6 ) {
+        if ( 0 == 1 && abs(nIDMother) != 6 ) {
 	  continue;
         }
 
@@ -704,7 +706,7 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
     b_Jpsi_lepSV_lowM.push_back(( fMDMLep1 >= fMDMLep2 ? fMDMLep1 : fMDMLep2 ));
     b_Jpsi_lepSV_dRM.push_back(( fSqrtdRMLep1 >= fSqrtdRMLep2 ? fMDMLep1 : fMDMLep2 ));
   }
-  
+  */
 
   edm::Handle<reco::VertexCollection> vertices;
   iEvent.getByToken(vtxToken_, vertices);
@@ -748,6 +750,7 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
   for ( const auto& x : selElecs ) recolep.push_back(&x);
 
   sort(recolep.begin(), recolep.end(), [](const cat::Lepton* a, const cat::Lepton* b){return a->pt() > b->pt();});
+  b_is3lep = recolep.size();
   recolep.erase(recolep.begin()+2,recolep.end());
   const cat::Lepton& recolep1 = *recolep[0];
   const cat::Lepton& recolep2 = *recolep[1];
@@ -1159,7 +1162,7 @@ void TtbarDiLeptonAnalyzer::setBranch(TTree* tr, systematic sys)
 
 
   // ############### Dstar begin #######################
-
+/*
   b_d0         = new TClonesArray("TLorentzVector",100);
   b_d0_dau1    = new TClonesArray("TLorentzVector",100);
   b_d0_dau2    = new TClonesArray("TLorentzVector",100);
@@ -1240,7 +1243,7 @@ void TtbarDiLeptonAnalyzer::setBranch(TTree* tr, systematic sys)
   tr->Branch("Jpsi_lepSV_lowM","std::vector<float>",&b_Jpsi_lepSV_lowM);
   tr->Branch("Jpsi_lepSV_dRM","std::vector<float>",&b_Jpsi_lepSV_dRM);
   tr->Branch("Jpsi_lepSV_correctM","std::vector<float>",&b_Jpsi_lepSV_correctM); // for test
-
+*/
 
   // ############### Dstar end  #######################
 
@@ -1295,7 +1298,7 @@ void TtbarDiLeptonAnalyzer::resetBranch()
   b_desyttbar = TLorentzVector();
   b_desyttbar_dphi = 0;
 
-  b_d0->Clear();    b_d0_dau1->Clear();    b_d0_dau2->Clear();
+/*  b_d0->Clear();    b_d0_dau1->Clear();    b_d0_dau2->Clear();
   b_dstar->Clear(); b_dstar_dau1->Clear(); b_dstar_dau2->Clear(); b_dstar_dau3->Clear();
   b_Jpsi->Clear();    b_Jpsi_dau1->Clear();    b_Jpsi_dau2->Clear();
 
@@ -1338,7 +1341,7 @@ void TtbarDiLeptonAnalyzer::resetBranch()
   b_Jpsi_lepSV_lowM.clear();
   b_Jpsi_lepSV_dRM.clear();
   b_Jpsi_lepSV_correctM.clear();
-
+*/
 
   // ############################ Dstar end ##########################
 }
@@ -1432,31 +1435,31 @@ bool TtbarDiLeptonAnalyzer::genInformation(const edm::Event& iEvent)
 
     // Start to build pseudo top
     b_pseudoChannel = CH_NOLL;
-    edm::Handle<edm::View<reco::Candidate> > pseudoTopLeptonHandle;
-    edm::Handle<edm::View<reco::Candidate> > pseudoTopNeutrinoHandle;
-    edm::Handle<edm::View<reco::Candidate> > pseudoTopJetHandle;
-    iEvent.getByToken(pseudoTop_leptons_, pseudoTopLeptonHandle);
-    iEvent.getByToken(pseudoTop_neutrinos_, pseudoTopNeutrinoHandle);
-    iEvent.getByToken(pseudoTop_jets_, pseudoTopJetHandle);
+    edm::Handle<edm::View<reco::Candidate> > particleLevelLeptonHandle;
+    edm::Handle<edm::View<reco::Candidate> > particleLevelNeutrinoHandle;
+    edm::Handle<edm::View<reco::Candidate> > particleLevelJetHandle;
+    iEvent.getByToken(particleLevel_leptons_, particleLevelLeptonHandle);
+    iEvent.getByToken(particleLevel_neutrinos_, particleLevelNeutrinoHandle);
+    iEvent.getByToken(particleLevel_jets_, particleLevelJetHandle);
     do {
       // Basic lepton, jet multiplicity
-      if ( pseudoTopLeptonHandle->size() < 2 or pseudoTopJetHandle->size() < 2 or pseudoTopNeutrinoHandle->size() < 2 ) break;
+      if ( particleLevelLeptonHandle->size() < 2 or particleLevelJetHandle->size() < 2 or particleLevelNeutrinoHandle->size() < 2 ) break;
 
       std::vector<size_t> leptonIdxs, neutrinoIdxs, bjetIdxs;
       // Lepton acceptance cuts
-      for ( size_t i=0, n=pseudoTopLeptonHandle->size(); i<n; ++i ) {
-	const auto& x = pseudoTopLeptonHandle->at(i);
+      for ( size_t i=0, n=particleLevelLeptonHandle->size(); i<n; ++i ) {
+	const auto& x = particleLevelLeptonHandle->at(i);
 	if ( x.pt() < 20 or std::abs(x.eta()) > 2.4 ) continue;
 	if ( abs(x.pdgId()) != 11 and abs(x.pdgId()) != 13 ) continue;
 	leptonIdxs.push_back(i);
       }
       if ( leptonIdxs.size() < 2 ) break;
       std::nth_element(leptonIdxs.begin(), leptonIdxs.begin()+2, leptonIdxs.end(),
-		       [&](size_t i, size_t j){return pseudoTopLeptonHandle->at(i).pt() > pseudoTopLeptonHandle->at(j).pt();});
-      const auto lepton1 = pseudoTopLeptonHandle->at(leptonIdxs[0]).p4();
-      const auto lepton2 = pseudoTopLeptonHandle->at(leptonIdxs[1]).p4();
-      const int pseudoW1DauId = abs(pseudoTopLeptonHandle->at(leptonIdxs[0]).pdgId());
-      const int pseudoW2DauId = abs(pseudoTopLeptonHandle->at(leptonIdxs[1]).pdgId());
+		       [&](size_t i, size_t j){return particleLevelLeptonHandle->at(i).pt() > particleLevelLeptonHandle->at(j).pt();});
+      const auto lepton1 = particleLevelLeptonHandle->at(leptonIdxs[0]).p4();
+      const auto lepton2 = particleLevelLeptonHandle->at(leptonIdxs[1]).p4();
+      const int pseudoW1DauId = abs(particleLevelLeptonHandle->at(leptonIdxs[0]).pdgId());
+      const int pseudoW2DauId = abs(particleLevelLeptonHandle->at(leptonIdxs[1]).pdgId());
       switch ( pseudoW1DauId+pseudoW2DauId ) {
       case 22: b_pseudoChannel = CH_ELEL; break;
       case 26: b_pseudoChannel = CH_MUMU; break;
@@ -1465,20 +1468,20 @@ bool TtbarDiLeptonAnalyzer::genInformation(const edm::Event& iEvent)
       }
       if (b_pseudoChannel > 0) keepTtbarSignal = true;
       //std::nth_element(neutrinoIdxs.begin(), neutrinoIdxs.begin()+2, neutrinoIdxs.end(),
-      //                 [&](size_t i, size_t j){return pseudoTopLeptonHandle->at(i).pt() > pseudoTopLeptonHandle->at(j).pt();});
-      auto nu1 = pseudoTopNeutrinoHandle->at(0).p4(), nu2 = pseudoTopNeutrinoHandle->at(1).p4();
+      //                 [&](size_t i, size_t j){return particleLevelLeptonHandle->at(i).pt() > particleLevelLeptonHandle->at(j).pt();});
+      auto nu1 = particleLevelNeutrinoHandle->at(0).p4(), nu2 = particleLevelNeutrinoHandle->at(1).p4();
 
       // Jet acceptance and generator level b tag
-      for ( size_t i=0, n=pseudoTopJetHandle->size(); i<n; ++i ) {
-	const auto& x = pseudoTopJetHandle->at(i);
+      for ( size_t i=0, n=particleLevelJetHandle->size(); i<n; ++i ) {
+	const auto& x = particleLevelJetHandle->at(i);
 	if ( x.pt() < 30 or std::abs(x.eta()) > 2.4 ) continue;
 	if ( abs(x.pdgId()) != 5 ) continue;
 	bjetIdxs.push_back(i);
       }
       if ( bjetIdxs.size() < 2 ) break;
       std::nth_element(bjetIdxs.begin(), bjetIdxs.begin()+2, bjetIdxs.end(),
-		       [&](size_t i, size_t j){return pseudoTopJetHandle->at(i).pt() > pseudoTopJetHandle->at(j).pt();});
-      auto bjet1 = pseudoTopJetHandle->at(bjetIdxs[0]).p4(), bjet2 = pseudoTopJetHandle->at(bjetIdxs[1]).p4();
+		       [&](size_t i, size_t j){return particleLevelJetHandle->at(i).pt() > particleLevelJetHandle->at(j).pt();});
+      auto bjet1 = particleLevelJetHandle->at(bjetIdxs[0]).p4(), bjet2 = particleLevelJetHandle->at(bjetIdxs[1]).p4();
 
       // Do the W combinations
       auto w1 = lepton1 + nu1;
@@ -1506,14 +1509,14 @@ bool TtbarDiLeptonAnalyzer::genInformation(const edm::Event& iEvent)
       //   if ( dm > dmAlt ) { gentop1 = t1Alt; gentop2 = t2Alt; std::swap(bjet1, bjet2); }
       // }
       //        if (gentop1.Pt() < gentop2.Pt()) { swap(gentop1, gentop2); }
-      if (pseudoTopLeptonHandle->at(leptonIdxs[0]).charge() < 0) swap(gentop1, gentop2);
+      if (particleLevelLeptonHandle->at(leptonIdxs[0]).charge() < 0) swap(gentop1, gentop2);
       b_pseudotop1 = ToTLorentzVector(gentop1);
       b_pseudotop2 = ToTLorentzVector(gentop2);
       b_pseudottbar = b_pseudotop1 + b_pseudotop2;
       b_pseudottbar_dphi = b_pseudotop1.DeltaPhi(b_pseudotop2);
 	
-      b_pseudolep1 = ToTLorentzVector(pseudoTopLeptonHandle->at(leptonIdxs[0]));
-      b_pseudolep2 = ToTLorentzVector(pseudoTopLeptonHandle->at(leptonIdxs[1]));
+      b_pseudolep1 = ToTLorentzVector(particleLevelLeptonHandle->at(leptonIdxs[0]));
+      b_pseudolep2 = ToTLorentzVector(particleLevelLeptonHandle->at(leptonIdxs[1]));
       b_pseudodilep = b_pseudolep1 + b_pseudolep2;
       //b_pseudolep1_pid = lepton1.pdgId();
       //b_pseudolep2_pid = lepton2.pdgId();
