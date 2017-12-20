@@ -129,6 +129,7 @@ private:
 
   //std::unique_ptr<TtFullLepKinSolver> solver;
   std::unique_ptr<KinematicSolver> solver_;
+  std::unique_ptr<KinematicSolver> solverPT_;
 
   const KinematicReconstruction* kinematicReconstruction;
   typedef math::XYZTLorentzVector LV;
@@ -263,6 +264,21 @@ TtbarDiLeptonAnalyzer::TtbarDiLeptonAnalyzer(const edm::ParameterSet& iConfig)
     solver_.reset(new TTDileptonSolver(solverPSet)); // A dummy solver
   }
 
+  auto solverPSetPT = iConfig.getParameter<edm::ParameterSet>("solverPseudoTop");
+  auto algoNamePT = solverPSetPT.getParameter<std::string>("algo");
+  std::transform(algoNamePT.begin(), algoNamePT.end(), algoNamePT.begin(), ::toupper);
+  if      ( algoNamePT == "CMSKIN" ) solverPT_.reset(new CMSKinSolver(solverPSetPT));
+  else if ( algoNamePT == "DESYMASSLOOP" ) solverPT_.reset(new DESYMassLoopSolver(solverPSetPT));
+  else if ( algoNamePT == "DESYSMEARED" ) solverPT_.reset(new DESYSmearedSolver(solverPSetPT));
+  else if ( algoNamePT == "MT2"    ) solverPT_.reset(new MT2Solver(solverPSetPT));
+  else if ( algoNamePT == "MAOS"   ) solverPT_.reset(new MAOSSolver(solverPSetPT));
+  else if ( algoNamePT == "DEFAULT" ) solverPT_.reset(new TTDileptonSolver(solverPSetPT));
+  else {
+    cerr << "The solver name \"" << solverPSetPT.getParameter<std::string>("algoPT") << "\" is not known please check spellings.\n";
+    cerr << "Fall back to the default dummy solver\n";
+    solverPT_.reset(new TTDileptonSolver(solverPSetPT)); // A dummy solver
+  }
+
   csvWeight.initCSVWeight(false, "csvv2");
   bTagWeightL.init(3, "csvv2", BTagEntry::OP_LOOSE , 1);
   bTagWeightM.init(3, "csvv2", BTagEntry::OP_MEDIUM, 1);
@@ -345,6 +361,11 @@ void TtbarDiLeptonAnalyzer::beginLuminosityBlock(const edm::LuminosityBlock& lum
     CLHEP::HepRandomEngine& engine = rng->getEngine(lumi.index());
     dynamic_cast<DESYSmearedSolver*>(solver_.get())->setRandom(&engine);
   }
+if ( dynamic_cast<DESYSmearedSolver*>(solverPT_.get()) != 0 ) {
+    edm::Service<edm::RandomNumberGenerator> rngPT;
+    CLHEP::HepRandomEngine& enginePT = rngPT->getEngine(lumi.index());
+    dynamic_cast<DESYSmearedSolver*>(solverPT_.get())->setRandom(&enginePT);
+  }
 }
 
 void TtbarDiLeptonAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
@@ -396,7 +417,7 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
     //h_nevents->Fill(0.5,b_weight);
     //h_nevents->Fill(0.5,b_genweight*b_puweight);
   }
-  h_nevents->Fill(0.5,b_genweight*b_puweight);
+  if(sys == syst_nom) h_nevents->Fill(0.5,b_genweight*b_puweight);
   //cout<<"2: "<<b_genweight*b_puweight<<endl;
   // #####################  Dstar begin  ########################
 /*  edm::Handle<cat::SecVertexCollection> d0s;       iEvent.getByToken(d0Token_,d0s);
@@ -752,6 +773,9 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
   sort(recolep.begin(), recolep.end(), [](const cat::Lepton* a, const cat::Lepton* b){return a->pt() > b->pt();});
   b_is3lep = recolep.size();
   recolep.erase(recolep.begin()+2,recolep.end());
+  if ( recolep[0]->charge() < 0 ){
+  swap(recolep[0], recolep[1]);
+  }
   const cat::Lepton& recolep1 = *recolep[0];
   const cat::Lepton& recolep2 = *recolep[1];
 
@@ -806,7 +830,8 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
   b_njet = selectedJets.size();
   b_nbjet = selectedBJets.size();
 
-  if ((b_channel == CH_MUEL) || (b_met > 40.)){
+  //if ((b_channel == CH_MUEL) || (b_met > 40.)){
+  if(selectedJets.size()>1){
     b_step3 = true;
     if (b_step == 2){
       ++b_step;
@@ -814,7 +839,8 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
     }
   }
 
-  if (selectedJets.size() >1 ){
+  //if (selectedJets.size() >1 ){
+  if ((b_channel == CH_MUEL) || (b_met > 40.)){
     b_step4 = true;
     if (b_step == 3){
       ++b_step;
@@ -881,8 +907,8 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
 
   const auto recolepLV1= recolep1.p4();
   const auto recolepLV2= recolep2.p4();
-  std::vector<cat::KinematicSolution> sol2Bs, sol1Bs, sol0Bs;
-  cat::KinematicSolution bestSol;
+  std::vector<cat::KinematicSolution> sol2Bs, sol1Bs, sol0Bs, sol2BsPT, sol1BsPT, sol0BsPT;
+  cat::KinematicSolution bestSol, bestSolPT;
 
   for (auto jet1 = selectedJets.begin(), end = selectedJets.end(); jet1 != end; ++jet1){
     const auto recojet1= jet1->p4();
@@ -914,6 +940,27 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
 	sol0Bs.push_back(sol1);
 	sol0Bs.push_back(sol2);
       }
+
+      // pseudoTop particle level
+      solverPT_->solve(met, recolepLV1, recolepLV2, recojet2, recojet1);
+      const cat::KinematicSolution sol1PT = solverPT_->solution();
+
+      solverPT_->solve(met, recolepLV1, recolepLV2, recojet1, recojet2);
+      const cat::KinematicSolution sol2PT = solverPT_->solution();
+
+      if ( isBjet1 and isBjet2 ) {
+        sol2BsPT.push_back(sol1PT);
+        sol2BsPT.push_back(sol2PT);
+      }
+      else if ( isBjet1 or isBjet2 ) {
+        sol1BsPT.push_back(sol1PT);
+        sol1BsPT.push_back(sol2PT);
+      }
+      else {
+        sol0BsPT.push_back(sol1PT);
+        sol0BsPT.push_back(sol2PT);
+      }
+
     }
   }
   auto greaterByQuality = [](const cat::KinematicSolution& a, const cat::KinematicSolution& b) { return a.quality() > b.quality(); };
@@ -946,7 +993,7 @@ bool TtbarDiLeptonAnalyzer::eventSelection(const edm::Event& iEvent, systematic 
     b_ttbar = b_top1 + b_top2;
     b_ttbar_dphi = b_top1.DeltaPhi(b_top2);
 
-    b_step6 = true;
+    b_step7 = true;
     if (b_step == 5){
       ++b_step;
       if (sys == syst_nom) cutflow_[9][b_channel]++;
@@ -962,14 +1009,17 @@ cat::MuonCollection TtbarDiLeptonAnalyzer::selectMuons(const cat::MuonCollection
   cat::MuonCollection selmuons;
   for (auto& m : muons) {
     cat::Muon mu(m);
+
+    if (mu.pt() < 20.) continue;
     if (std::abs(mu.eta()) > 2.4) continue;
     if (!mu.isTightMuon()) continue;
+    if (mu.relIso(0.4) > 0.15) continue;
     
     if (sys == syst_mu_u) mu.setP4(m.p4() * m.shiftedEnUp());
     if (sys == syst_mu_d) mu.setP4(m.p4() * m.shiftedEnDown());
 
-    if (mu.pt() < 20.) continue;
-    if (mu.relIso(0.4) > 0.15) continue;
+    //if (mu.pt() < 20.) continue;
+    //if (mu.relIso(0.4) > 0.15) continue;
     //printf("muon with pt %4.1f, POG loose id %d, tight id %d\n", mu.pt(), mu.isLooseMuon(), mu.isTightMuon());
     selmuons.push_back(mu);
   }
@@ -981,8 +1031,8 @@ cat::ElectronCollection TtbarDiLeptonAnalyzer::selectElecs(const cat::ElectronCo
   cat::ElectronCollection selelecs;
   for (auto& e : elecs) {
     cat::Electron el(e);
+    if (el.pt() < 20.) continue;
     if (std::abs(el.eta()) > 2.4) continue;
-    //if ( !el.isTight() ) continue;
     if ((std::abs(el.scEta()) > 1.4442) && (std::abs(el.scEta()) < 1.566)) continue;
     if ( !el.electronID("cutBasedElectronID-Summer16-80X-V1-medium") ) continue;
     //if ( !el.electronID("cutBasedElectronID-Summer16-80X-V1-tight") ) continue;
@@ -993,7 +1043,7 @@ cat::ElectronCollection TtbarDiLeptonAnalyzer::selectElecs(const cat::ElectronCo
     if (sys == syst_el_u) el.setP4(e.p4() * e.shiftedEnUp());
     if (sys == syst_el_d) el.setP4(e.p4() * e.shiftedEnDown());
 
-    if (el.pt() < 20.) continue;
+    //if (el.pt() < 20.) continue;
     //if (el.relIso(0.3) > 0.0678) continue;
     //printf("electron with pt %4.1f\n", el.pt());
     selelecs.push_back(el);
@@ -1387,7 +1437,6 @@ bool TtbarDiLeptonAnalyzer::genInformation(const edm::Event& iEvent)
       b_partonMode1 = (*partonTop_modes)[0];
       b_partonMode2 = (*partonTop_modes)[1];
     }
-    if (b_partonChannel == CH_FULLLEPTON) keepTtbarSignal = true;
 
     if ( !(partonTop_genParticles->empty()) ){
 
@@ -1499,15 +1548,15 @@ bool TtbarDiLeptonAnalyzer::genInformation(const edm::Event& iEvent)
       auto gentop1 = w1 + bjet1;
       auto gentop2 = w2 + bjet2;
 	
-      // if ( true ) {
-      //   const auto t1Alt = w1 + bjet2;
-      //   const auto t2Alt = w2 + bjet1;
+      if ( true ) {
+        const auto t1Alt = w1 + bjet2;
+        const auto t2Alt = w2 + bjet1;
 
-      //   const double tMass = 172.5;
-      //   const double dm = std::abs(gentop1.mass()-tMass)+std::abs(gentop2.mass()-tMass);
-      //   const double dmAlt = std::abs(t1Alt.mass()-tMass)+std::abs(t2Alt.mass()-tMass);
-      //   if ( dm > dmAlt ) { gentop1 = t1Alt; gentop2 = t2Alt; std::swap(bjet1, bjet2); }
-      // }
+        const double tMass = 172.5;
+        const double dm = std::abs(gentop1.mass()-tMass)+std::abs(gentop2.mass()-tMass);
+        const double dmAlt = std::abs(t1Alt.mass()-tMass)+std::abs(t2Alt.mass()-tMass);
+        if ( dm > dmAlt ) { gentop1 = t1Alt; gentop2 = t2Alt; std::swap(bjet1, bjet2); }
+      }
       //        if (gentop1.Pt() < gentop2.Pt()) { swap(gentop1, gentop2); }
       if (particleLevelLeptonHandle->at(leptonIdxs[0]).charge() < 0) swap(gentop1, gentop2);
       b_pseudotop1 = ToTLorentzVector(gentop1);
