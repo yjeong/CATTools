@@ -62,7 +62,7 @@ process.cattree = cms.EDAnalyzer("TtbarDiLeptonAnalyzer",
     partonTop_modes = cms.InputTag("partonTop", "modes"),
     partonTop_genParticles = cms.InputTag("partonTop"),
 
-    particleLevel = cms.InputTag("particleLevel"),
+    particleLevelTop = cms.InputTag("particleLevelTop"),
 
 ## Dstar begin
     d0s    = cms.InputTag("catDstars","D0Cand"),
